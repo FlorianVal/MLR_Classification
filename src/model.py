@@ -16,13 +16,13 @@ class SimpleCNN(nn.Module):
         self.fc2 = nn.Linear(512, num_classes)
         self.tikhonov = TikhonovLayer(512, lambda_param)
 
-    def forward(self, x):
+    def forward(self, x, y=None):
         x = self.features(x)
         x = x.view(x.size(0), -1)
         x = nn.functional.relu(self.fc1(x))
-        features = self.fc2(x)  # Shape: (batch_size, num_classes)
+        preds = self.fc2(x)  # Shape: (batch_size, num_classes)
         H = self.tikhonov(x)  # Shape: (batch_size, batch_size)
-        return H, features
+        return H, preds
 
 class TikhonovLayer(nn.Module):
     def __init__(self, feature_size, lambda_param = 1.0):
@@ -31,9 +31,8 @@ class TikhonovLayer(nn.Module):
         self.lambda_param = nn.Parameter(torch.tensor(lambda_param))
 
     def forward(self, x):
-        A = x  # Shape: (batch_size, feature_size)
-        ATA = torch.matmul(A.t(), A)  # Shape: (feature_size, feature_size)
+        ATA = torch.matmul(x.t(), x)  # Shape: (feature_size, feature_size)
         I = torch.eye(self.feature_size, device=x.device)  # Shape: (feature_size, feature_size)
         P = torch.inverse(ATA + self.lambda_param * I)  # Shape: (feature_size, feature_size)
-        H = torch.matmul(A, torch.matmul(P, A.t()))  # Shape: (batch_size, batch_size)
-        return H
+        H = torch.matmul(x, torch.matmul(P, x.t()))  # Shape: (batch_size, batch_size)
+        return H 
